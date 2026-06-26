@@ -42,23 +42,20 @@ app.post("/renovar", async (req, res) => {
     const page = await browser.newPage();
 
     await page.goto(URL_PAINEL, {
-      waitUntil: "networkidle",
+      waitUntil: "domcontentloaded",
       timeout: 60000
     });
 
-    await page.waitForTimeout(8000);
+    await page.waitForTimeout(10000);
 
-    console.log("URL:", page.url());
+    console.log("URL atual:", page.url());
     console.log("Título:", await page.title());
 
+    const html = await page.content();
+    console.log("HTML início:", html.slice(0, 1000));
+
     const inputs = await page.locator("input").count();
-
     console.log("Inputs encontrados:", inputs);
-
-    await page.screenshot({
-      path: "debug-login.png",
-      fullPage: true
-    });
 
     if (inputs < 2) {
       throw new Error("Campos de login não encontrados.");
@@ -69,7 +66,7 @@ app.post("/renovar", async (req, res) => {
 
     return res.json({
       ok: true,
-      message: "Login localizado com sucesso."
+      message: "Login encontrado."
     });
   } catch (error) {
     console.error(error);
