@@ -8,6 +8,7 @@ app.use(cors());
 app.use(express.json({ limit: "1mb" }));
 
 const PORT = process.env.PORT || 10000;
+
 const URL_PAINEL =
   process.env.URL_INVICTOS || "https://invictosserver.site/#/sign-in";
 
@@ -24,10 +25,11 @@ app.get("/", (req, res) => {
   });
 });
 
-// RENOVAR
+// RENOVAÇÃO
 app.post("/renovar", async (req, res) => {
+  let browser;
+
   try {
-    // AUTENTICAÇÃO
     const token = req.headers.authorization?.replace("Bearer ", "");
 
     if (!token || token !== ROBOT_SECRET) {
@@ -52,70 +54,108 @@ app.post("/renovar", async (req, res) => {
       planoTexto
     });
 
-    const browser = await chromium.launch({
+    browser = await chromium.launch({
       headless: true
     });
 
     const page = await browser.newPage();
 
+    // ENTRA NO PAINEL
+    await page.goto(URL_PAINEL, {
+      waitUntil: "domcontentloaded",
+      timeout: 60000
+    });
+
+    await page.waitForTimeout(5000);
+
+    console.log("URL atual:", page.url());
+    console.log("Título:", await page.title());
+
+    // PEGA TODOS OS INPUTS
+    const inputs = page.locator("input");
+    const totalInputs = await inputs.count();
+
+    console.log("Total de inputs encontrados:", totalInputs);
+
+    if (totalInputs < 2) {
+      throw new Error("Campos de login não encontrados.");
+    }
+
     // LOGIN
-    await page.goto(URL_PAINEL);
+    await inputs.nth(0).fill(LOGIN);
+    await inputs.nth(1).fill(SENHA);
 
-    await page.fill('input[type="text"]', LOGIN);
-    await page.fill('input[type="password"]', SENHA);
+    // BOTÃO CONTINUAR
+    await page.locator("button").first().click();
 
-    await page.click("button");
+    await page.waitForTimeout(5000);
 
-    await page.waitForTimeout(4000);
+    console.log("Login feito. URL:", page.url());
 
-    // CLIENTES
-    await page.goto("https://invictosserver.site/#/customers");
+    // VAI PRA ÁREA DE CLIENTES
+    await page.goto("https://invictosserver.site/#/customers", {
+      waitUntil: "domcontentloaded",
+      timeout: 60000
+    });
 
-    await page.waitForTimeout(3000);
+    await page.waitForTimeout(5000);
+
+    console.log("Página clientes carregada.");
 
     // BUSCAR CLIENTE
-    const searchInput = await page.locator("input").first();
+    const searchInput = page.locator("input").first();
+
     await searchInput.fill(usuario);
 
     await page.waitForTimeout(3000);
 
     // CLICAR RENOVAR
-    await page.click("text=Renovar");
+    await page.locator("text=Renovar").first().click();
 
-    await page.waitForTimeout(2000);
+    await page.waitForTimeout(3000);
 
     // SELECIONAR PLANO
     if (planoTexto) {
-      await page.click("select");
-      await page.selectOption("select", { label: planoTexto });
+      const select = page.locator("select").first();
+
+      await select.selectOption({ label: planoTexto });
+
+      console.log("Plano selecionado:", planoTexto);
     }
 
-    // CONEXÕES
+    // AJUSTAR CONEXÕES
     if (connections) {
-      const conexoesInput = await page.locator('input[type="number"]').first();
-      await conexoesInput.fill(String(connections));
+      const numberInput = page.locator('input[type="number"]').first();
+
+      await numberInput.fill(String(connections));
+
+      console.log("Conexões ajustadas:", connections);
     }
 
-    await page.waitForTimeout(1000);
+    await page.waitForTimeout(2000);
 
-    // CONFIRMAR
-    await page.click("text=Renovar");
+    // CONFIRMAR RENOVAÇÃO
+    await page.locator("text=Renovar").last().click();
 
     await page.waitForTimeout(5000);
 
-    await browser.close();
+    console.log("Renovação concluída.");
 
     return res.json({
       ok: true,
       message: "Cliente renovado com sucesso."
     });
   } catch (error) {
-    console.error(error);
+    console.error("ERRO:", error);
 
     return res.status(500).json({
       ok: false,
       error: error.message
     });
+  } finally {
+    if (browser) {
+      await browser.close();
+    }
   }
 });
 
