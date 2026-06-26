@@ -8,8 +8,9 @@ app.use(cors());
 app.use(express.json());
 
 const PORT = process.env.PORT || 10000;
+
 const URL_PAINEL =
-  process.env.URL_INVICTOS || "https://invictosserver.site/#/sign-in";
+  process.env.URL_INVICTOS || "https://invictosserver.site/";
 
 const LOGIN = process.env.INVICTOS_LOGIN;
 const SENHA = process.env.INVICTOS_PASSWORD;
@@ -42,32 +43,38 @@ app.post("/renovar", async (req, res) => {
     const page = await browser.newPage();
 
     await page.goto(URL_PAINEL, {
-      waitUntil: "domcontentloaded",
+      waitUntil: "networkidle",
       timeout: 60000
     });
 
-    await page.waitForTimeout(10000);
+    await page.waitForTimeout(5000);
 
     console.log("URL atual:", page.url());
     console.log("Título:", await page.title());
-
-    const html = await page.content();
-    console.log("HTML início:", html.slice(0, 1000));
 
     const inputs = await page.locator("input").count();
     console.log("Inputs encontrados:", inputs);
 
     if (inputs < 2) {
-      throw new Error("Campos de login não encontrados.");
+      throw new Error("Tela de login não localizada.");
     }
 
     await page.locator("input").nth(0).fill(LOGIN);
     await page.locator("input").nth(1).fill(SENHA);
 
+    const botao = page.locator("button:has-text('Continuar')");
+
+    if (await botao.count()) {
+      await botao.click();
+    }
+
+    await page.waitForTimeout(5000);
+
     return res.json({
       ok: true,
-      message: "Login encontrado."
+      message: "Login realizado com sucesso."
     });
+
   } catch (error) {
     console.error(error);
 
