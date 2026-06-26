@@ -17,10 +17,7 @@ const SENHA = process.env.INVICTOS_PASSWORD;
 const ROBOT_SECRET = process.env.ROBOT_SECRET;
 
 app.get("/", (req, res) => {
-  res.json({
-    ok: true,
-    service: "Robô Invictos Render"
-  });
+  res.json({ ok: true });
 });
 
 app.post("/renovar", async (req, res) => {
@@ -47,32 +44,18 @@ app.post("/renovar", async (req, res) => {
       timeout: 60000
     });
 
-    await page.waitForTimeout(5000);
+    await page.waitForTimeout(8000);
 
-    console.log("URL atual:", page.url());
-    console.log("Título:", await page.title());
+    console.log("URL:", page.url());
+    console.log("TITLE:", await page.title());
 
-    const inputs = await page.locator("input").count();
-    console.log("Inputs encontrados:", inputs);
+    const html = await page.content();
 
-    if (inputs < 2) {
-      throw new Error("Tela de login não localizada.");
-    }
-
-    await page.locator("input").nth(0).fill(LOGIN);
-    await page.locator("input").nth(1).fill(SENHA);
-
-    const botao = page.locator("button:has-text('Continuar')");
-
-    if (await botao.count()) {
-      await botao.click();
-    }
-
-    await page.waitForTimeout(5000);
+    console.log("HTML:", html.substring(0, 2000));
 
     return res.json({
       ok: true,
-      message: "Login realizado com sucesso."
+      message: "Debug gerado."
     });
 
   } catch (error) {
@@ -83,12 +66,8 @@ app.post("/renovar", async (req, res) => {
       error: error.message
     });
   } finally {
-    if (browser) {
-      await browser.close();
-    }
+    if (browser) await browser.close();
   }
 });
 
-app.listen(PORT, () => {
-  console.log("Robô online");
-});
+app.listen(PORT);
